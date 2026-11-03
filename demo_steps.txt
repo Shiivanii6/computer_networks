@@ -1,0 +1,35 @@
+DEMO STEPS - Biometric Network Transfer (BNP v1)
+
+SETUP
+  Open the project folder in two terminals.
+  Terminal 1:  python receiver.py
+  Terminal 2:  (all commands below)
+
+1. NORMAL TRANSFER
+   python sender.py test_data\medium_5MB.bin
+   Expected: Receiver says: VERIFIED
+
+2. CORRUPTED FILE (one flipped bit, caught by SHA-256)
+   python tests\test_integrity.py
+   Expected: Corrupted file -> REJECTED (sha256 mismatch)
+             Clean file     -> VERIFIED
+
+3. INTERRUPTED TRANSFER (connection drops mid-file)
+   python -c "import socket,protocol as p; s=socket.create_connection(('127.0.0.1',5001)); p.send_request_header(s,'cut.bin',1000000,'0'*64); s.sendall(b'x'*1000); s.close()"
+   Expected (receiver terminal): ERROR: connection closed with 999000 bytes still missing
+
+4. INVALID PROTOCOL DATA
+   python -c "import socket; s=socket.create_connection(('127.0.0.1',5001)); s.sendall(b'hello world'); s.close()"
+   Expected (receiver terminal): ERROR: bad magic: not a BNP connection
+
+5. DUPLICATE SEND (no overwrite)
+   python sender.py test_data\medium_5MB.bin
+   Expected: saved as medium_5MB_1.bin (or the next free number)
+
+6. INDEPENDENT CHECK
+   Get-FileHash test_data\medium_5MB.bin, received_data\medium_5MB.bin | Format-List
+   Expected: both hashes identical
+
+NOTES
+  - Tomorrow: replace test_data files with a real dataset file.
+  - Two-computer demo: start the receiver with --host 0.0.0.0 and send with --host <receiver-IP>.
